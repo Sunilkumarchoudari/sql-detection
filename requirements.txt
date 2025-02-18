@@ -3,3 +3,5 @@ flask
 pandas
 numpy
 scikit-learn
+ciff
+flask-socketios
