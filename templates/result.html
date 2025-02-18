@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Detection Result</title>
+    <style>
+        /* Apply a light theme to the body */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f4f7fc;
+            color: #333;
+        }
+
+        /* Container styling */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Heading styling */
+        h1 {
+            color: #2c3e50;
+            font-size: 28px;
+        }
+
+        h3 {
+            color: #34495e;
+            font-size: 20px;
+        }
+
+        /* Result styling */
+        .result {
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        /* Malicious result theme */
+        .malicious {
+            background-color: #ffcccc;
+            border: 1px solid #ff0000;
+            color: #ff0000;
+        }
+
+        /* Benign result theme */
+        .benign {
+            background-color: #ccffcc;
+            border: 1px solid #00ff00;
+            color: #2d7d2d;
+        }
+
+        /* Links styling */
+        a {
+            text-decoration: none;
+            color: #3498db;
+            font-weight: bold;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Detection Result</h1>
+        <div class="result {% if result == 'Malicious SQL Injection Attempt' %}malicious{% else %}benign{% endif %}">
+            <h3>Analysis Result:</h3>
+            <p>{{ result }}</p>
+        </div>
+        <p><a href="/newpage">← Analyze Another Query</a></p>
+        <p><a href="/">← Back to Home</a></p>
+    </div>
+
+    <!-- Include socket.io -->
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script>
+        const socket = io.connect("http://127.0.0.1:5000");  // Connect to the server
+
+        // Get the user's location using the browser's geolocation API
+        navigator.geolocation.getCurrentPosition(function(position) {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+
+            // Send the location to the server
+            socket.emit('user_location', { lat: lat, lon: lon });
+
+        }, function(error) {
+            console.error("Error getting geolocation:", error);
+        });
+    </script>
+
+    <script>
+        function sendLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    // Send exact location (latitude and longitude) to the server
+                    socket.emit('update_location', {
+                        lat: position.coords.latitude,
+                        lon: position.coords.longitude,
+                        location: `Lat: ${position.coords.latitude}, Lng: ${position.coords.longitude}`
+                    });
+                }, (error) => {
+                    console.error('Error getting location:', error);
+                    socket.emit('update_location', {
+                        lat: 0,
+                        lon: 0,
+                        location: 'Location not available'
+                    });
+                });
+            } else {
+                console.error('Geolocation is not supported by this browser.');
+            }
+        }
+    </script>
+</body>
+</html>

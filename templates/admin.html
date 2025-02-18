@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #121212;
+            color: #fff;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #f5f5f5;
+            font-weight: 500;
+        }
+        .container {
+            max-width: 1000px;
+            margin: auto;
+            padding: 30px;
+            background-color: #1e1e1e;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        .cards-wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .card {
+            background-color: #2b2b2b;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            flex: 1 1 calc(50% - 20px); /* Flexbox to make them side by side */
+            min-width: 300px;
+        }
+        .card h2 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+        .card p {
+            font-size: 16px;
+            color: #bbb;
+        }
+        .metrics p {
+            font-size: 18px;
+            color: #ddd;
+        }
+        .metrics strong {
+            color: #00ff7f;
+        }
+        .user-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .user-list li {
+            background-color: #333;
+            margin: 8px 0;
+            padding: 12px;
+            border-radius: 8px;
+        }
+        .logs {
+            max-height: 300px;
+            overflow-y: auto;
+            background-color: #333;
+            padding: 15px;
+            border-radius: 10px;
+            color: #aaa;
+        }
+        .logs pre {
+            background-color: #1a1a1a;
+            border-radius: 8px;
+            padding: 10px;
+            color: #ddd;
+        }
+        .location-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #2b2b2b;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 10px;
+        }
+        .location-card div {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .location-card div p {
+            margin-top: 5px;
+        }
+    </style>
+    <script>
+        var socket = io.connect("http://127.0.0.1:5000");
+
+        // Fetch performance metrics
+        function fetchMetrics() {
+            fetch('/metrics')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('accuracy').innerText = data.accuracy.toFixed(4);
+                    document.getElementById('precision').innerText = data.precision.toFixed(4);
+                    document.getElementById('recall').innerText = data.recall.toFixed(4);
+                    document.getElementById('f1_score').innerText = data.f1_score.toFixed(4);
+                    document.getElementById('dataCoverage').innerText = data.dataCoverage.toFixed(2) + '%';
+                    document.getElementById('maliciousQueryPercent').innerText = data.maliciousQueryPercent.toFixed(2) + '%';
+                    document.getElementById('querySize').innerText = data.querySize.toFixed(2) + ' KB';
+                    document.getElementById('updateDuration').innerText = data.updateDuration.toFixed(2) + ' seconds';
+                })
+                .catch(error => console.error('Error fetching metrics:', error));
+        }
+
+        // Update user list
+        function updateUserList(users) {
+            let userList = document.getElementById('userList');
+            userList.innerHTML = "";
+            let count = Object.keys(users).length;
+            document.getElementById('userCount').innerText = count;
+
+            for (let id in users) {
+                let li = document.createElement('li');
+                li.innerText = `User: ${id}`;
+                userList.appendChild(li);
+            }
+        }
+
+        socket.on('update_users', function(users) {
+            updateUserList(users);
+        });
+
+        // Fetch logs from server
+        function fetchLogs() {
+            fetch('/static/app.log')
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('logs').innerText = data;
+                })
+                .catch(error => console.error('Error fetching logs:', error));
+        }
+
+        setInterval(fetchMetrics, 5000);
+        setInterval(fetchLogs, 10000);
+        setInterval(sendLocation, 15000);
+    </script>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Admin Dashboard</h1>
+
+        <!-- Cards Wrapper -->
+        <div class="cards-wrapper">
+            <!-- Performance Metrics Card -->
+            <div class="card metrics">
+                <h2>Performance Metrics</h2>
+                <p>Accuracy: <strong id="accuracy">Loading...</strong></p>
+                <p>Precision: <strong id="precision">Loading...</strong></p>
+                <p>Recall: <strong id="recall">Loading...</strong></p>
+                <p>F1 Score: <strong id="f1_score">Loading...</strong></p>
+            </div>
+
+            <!-- Additional Metrics Card -->
+            <div class="card metrics">
+                <h2>Additional Metrics</h2>
+                <p>Training Data Coverage: <strong id="dataCoverage">Loading...</strong></p>
+                <p>Malicious SQL Queries Percentage: <strong id="maliciousQueryPercent">Loading...</strong></p>
+                <p>Update Query Size: <strong id="querySize">Loading...</strong></p>
+                <p>Update Query Size Round Duration: <strong id="updateDuration">Loading...</strong></p>
+            </div>
+
+            <!-- Live User Locations Card -->
+            <div class="card">
+                <h2>Live Users</h2>
+                <p>Current User Count: <strong id="userCount">0</strong></p>
+                <ul id="userList" class="user-list"></ul>
+            </div>
+
+            <!-- Logs Card -->
+            <div class="card logs">
+                <h2>Logs</h2>
+                <pre id="logs">Loading logs...</pre>
+            </div>
+        </div>
+
+        <!-- User Locations Section -->
+        <div id="user-locations" class="location-card">
+            <!-- User locations will be populated dynamically here -->
+        </div>
+    </div>
+
+</body>
+</html>

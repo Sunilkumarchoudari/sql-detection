@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detect SQL Injection</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: #ffffff;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: #e0e0e0;
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        p {
+            font-size: 1.2rem;
+            text-align: center;
+            color: #bbbbbb;
+            margin-bottom: 30px;
+        }
+
+        .container {
+            width: 80%;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #1f1f1f;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        form {
+            margin-top: 30px;
+        }
+
+        label {
+            font-size: 1.1rem;
+            color: #ccc;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 12px;
+            margin: 10px 0;
+            background-color: #333;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        a {
+            color: #007bff;
+            text-decoration: none;
+            font-size: 1.1rem;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        footer {
+            text-align: center;
+            color: #888;
+            margin-top: 50px;
+            font-size: 0.9rem;
+        }
+
+        .map-container {
+            margin-top: 30px;
+            height: 400px;
+            background-color: #333;
+            border-radius: 10px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+    <script>
+        var socket = io();
+
+        function fetchMetrics() {
+            fetch('/metrics')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('accuracy').innerText = data.accuracy.toFixed(4);
+                    document.getElementById('precision').innerText = data.precision.toFixed(4);
+                    document.getElementById('recall').innerText = data.recall.toFixed(4);
+                    document.getElementById('f1_score').innerText = data.f1_score.toFixed(4);
+                })
+                .catch(error => console.error('Error fetching metrics:', error));
+        }
+
+        function updateUserList(users) {
+            let userList = document.getElementById('userList');
+            userList.innerHTML = "";
+            let count = Object.keys(users).length;
+            document.getElementById('userCount').innerText = count;
+
+            for (let id in users) {
+                let li = document.createElement('li');
+                li.innerText = `User: ${id} | Location: ${users[id].location}`;
+                userList.appendChild(li);
+            }
+        }
+
+        socket.on('update_users', function(users) {
+            updateUserList(users);
+        });
+
+        function sendLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    socket.emit('update_location', {
+                        location: `Lat: ${position.coords.latitude}, Lng: ${position.coords.longitude}`
+                    });
+                });
+            }
+        }
+
+        function fetchLogs() {
+            fetch('/static/app.log')
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('logs').innerText = data;
+                })
+                .catch(error => console.error('Error fetching logs:', error));
+        }
+
+        setInterval(fetchMetrics, 5000);
+        setInterval(fetchLogs, 10000);
+        setInterval(sendLocation, 15000);
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>SQL Query Analyzer</h1>
+        <form method="POST" action="/newpage">
+            <label for="user_input">Enter SQL Query:</label><br>
+            <textarea name="user_input" id="user_input" required></textarea><br>
+            <button type="submit">Analyze Query</button>
+        </form>
+        <p><a href="/">← Back to Home</a></p>
+    </div>
+
+    <div class="map-container" id="user-map"></div>
+
+    <footer>
+        <p>&copy; 2025 SQL Injection Detection System. All rights reserved.</p>
+    </footer>
+
+    <script>
+        const socket = io();
+    
+        // Initialize map
+        const map = L.map('user-map').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        const markers = {};
+    
+        // Handle user updates
+        socket.on('update_users', users => {
+            // Clear existing markers
+            Object.values(markers).forEach(marker => marker.remove());
+    
+            // Add new markers
+            Object.entries(users).forEach(([id, user]) => {
+                const marker = L.marker([user.lat, user.lon])
+                    .bindPopup(`${user.ip}<br>${user.location}`)
+                    .addTo(map);
+                markers[id] = marker;
+            });
+        });
+    
+        // Handle connection status
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+    
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+        });
+    </script>
+</body>
+</html>
